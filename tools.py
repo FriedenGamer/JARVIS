@@ -4,11 +4,9 @@ import json
 import operator
 from pathlib import Path
 
+import db
+
 BASE_DIR = Path(__file__).resolve().parent
-REMINDERS = []
-DRAFTS = []
-BOOKINGS = []
-PAYMENTS = []
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
 _SAFE_BINOPS = {
@@ -101,14 +99,23 @@ def add_reminder(title, due_date):
     if not _valid_date(due_date):
         return _fail("due_date must be a valid YYYY-MM-DD date")
 
-    clean_title = title.strip()
-    for item in REMINDERS:
-        if item["title"].lower() == clean_title.lower() and item["due_date"] == due_date:
-            return _fail("Duplicate reminder")
+    try:
+        clean_title = title.strip()
+        existing = db.list_records("reminder")
+        for rec in existing:
+            data = rec.get("data", {})
+            if (
+                isinstance(data, dict)
+                and str(data.get("title", "")).lower() == clean_title.lower()
+                and data.get("due_date") == due_date
+            ):
+                return _ok({**data, "skipped_duplicate": True})
 
-    reminder = {"title": clean_title, "due_date": due_date}
-    REMINDERS.append(reminder)
-    return _ok(reminder)
+        reminder = {"title": clean_title, "due_date": due_date}
+        db.add_record("reminder", reminder)
+        return _ok(reminder)
+    except Exception as exc:
+        return _fail(str(exc))
 
 
 def plan_week():
@@ -135,14 +142,17 @@ def draft_email(to, subject, body):
     if not isinstance(body, str) or not body.strip():
         return _fail("body cannot be empty")
 
-    draft = {
-        "to": to.strip(),
-        "subject": subject.strip(),
-        "body": body.strip(),
-        "status": "draft",
-    }
-    DRAFTS.append(draft)
-    return _ok(draft)
+    try:
+        draft = {
+            "to": to.strip(),
+            "subject": subject.strip(),
+            "body": body.strip(),
+            "status": "draft",
+        }
+        db.add_record("draft", draft)
+        return _ok(draft)
+    except Exception as exc:
+        return _fail(str(exc))
 
 
 def view_calendar(date):
@@ -150,10 +160,33 @@ def view_calendar(date):
         return _fail("date must be a valid YYYY-MM-DD date")
     try:
         entries = _load_json("calendar.json")
+        slots = []
         for entry in entries:
-            if entry.get("date") == date:
-                return _ok({"date": date, "slots": entry.get("slots", [])})
-        return _ok({"date": date, "slots": []})
+            if isinstance(entry, dict) and entry.get("date") == date:
+                slots = list(entry.get("slots", []))
+                break
+
+        busy_times = {
+            s.get("time")
+            for s in slots
+            if isinstance(s, dict) and s.get("status") == "busy"
+        }
+        for rec in db.list_records("booking"):
+            bdata = rec.get("data", {})
+            if isinstance(bdata, dict) and bdata.get("date") == date:
+                btime = bdata.get("time")
+                if btime and btime not in busy_times:
+                    slots.append(
+                        {
+                            "time": btime,
+                            "status": "busy",
+                            "title": bdata.get("title", "Booked appointment"),
+                        }
+                    )
+                    busy_times.add(btime)
+
+        slots.sort(key=lambda s: str(s.get("time", "")))
+        return _ok({"date": date, "slots": slots})
     except Exception as exc:
         return _fail(str(exc))
 
@@ -169,23 +202,23 @@ def book_appointment(title, date, time):
     try:
         entries = _load_json("calendar.json")
         for entry in entries:
-            if entry.get("date") == date:
+            if isinstance(entry, dict) and entry.get("date") == date:
                 for slot in entry.get("slots", []):
-                    if slot.get("time") == time and slot.get("status") == "busy":
+                    if isinstance(slot, dict) and slot.get("time") == time and slot.get("status") == "busy":
                         return _fail("Slot is busy")
 
-        clean_title = title.strip()
-        for existing in BOOKINGS:
-            if existing["date"] == date and existing["time"] == time:
+        for rec in db.list_records("booking"):
+            bdata = rec.get("data", {})
+            if isinstance(bdata, dict) and bdata.get("date") == date and bdata.get("time") == time:
                 return _fail("Slot is busy")
 
         booking = {
-            "title": clean_title,
+            "title": title.strip(),
             "date": date,
             "time": time,
             "status": "booked",
         }
-        BOOKINGS.append(booking)
+        db.add_record("booking", booking)
         return _ok(booking)
     except Exception as exc:
         return _fail(str(exc))
@@ -198,14 +231,20 @@ def pay_bill(bill_id, amount):
 
         target_bill = None
         for bill in bills:
-            if bill.get("id") == bill_id:
+            if isinstance(bill, dict) and bill.get("id") == bill_id:
                 target_bill = bill
                 break
 
         if target_bill is None:
             return _fail("Bill not found")
 
-        for payment in PAYMENTS:
+        payments = [
+            rec.get("data", {})
+            for rec in db.list_records("payment")
+            if isinstance(rec.get("data"), dict)
+        ]
+
+        for payment in payments:
             if payment.get("bill_id") == bill_id:
                 return _fail("Bill already paid")
 
@@ -214,7 +253,7 @@ def pay_bill(bill_id, amount):
             return _fail("Amount does not match bill amount")
 
         starting_balance = wallet.get("starting_balance", 0)
-        spent = sum(p.get("amount", 0) for p in PAYMENTS)
+        spent = sum(p.get("amount", 0) for p in payments if isinstance(p.get("amount"), (int, float)))
         available_balance = starting_balance - spent
 
         if amount > available_balance:
@@ -227,7 +266,7 @@ def pay_bill(bill_id, amount):
             "simulated": True,
             "status": "paid",
         }
-        PAYMENTS.append(payment)
+        db.add_record("payment", payment)
         return _ok(payment)
     except Exception as exc:
         return _fail(str(exc))
@@ -287,12 +326,12 @@ def fill_form(form_name, fields):
         if unknown_keys:
             return _fail(f"Unknown or unallowed fields: {', '.join(unknown_keys)}")
 
-        return _ok(
-            {
-                "form_name": clean_name,
-                "fields": fields,
-                "status": "filled",
-            }
-        )
+        filled = {
+            "form_name": clean_name,
+            "fields": fields,
+            "status": "filled",
+        }
+        db.add_record("form", filled)
+        return _ok(filled)
     except Exception as exc:
         return _fail(str(exc))

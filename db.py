@@ -210,3 +210,57 @@ def approve_task(task_id):
     if task["status"] != "pending":
         raise ValueError(f"Cannot approve task {task_id} with status '{task['status']}'")
     return set_status(task_id, "approved")
+
+VALID_RECORD_KINDS = {
+    "reminder",
+    "draft",
+    "payment",
+    "booking",
+    "form",
+    "note",
+    "memory",
+}
+
+
+def add_record(kind, data):
+    """Insert a state record (reminder, draft, payment, booking, form, etc.) into SQLite."""
+    if kind not in VALID_RECORD_KINDS:
+        raise ValueError(f"Invalid record kind: {kind}")
+    init_db()
+    now = _now_iso()
+    data_str = data if isinstance(data, str) else json.dumps(data)
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO records (kind, data_json, created_at)
+            VALUES (?, ?, ?)
+            """,
+            (kind, data_str, now),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def list_records(kind=None):
+    """Return records as dicts with parsed 'data' field, optionally filtered by kind."""
+    init_db()
+    with _connect() as conn:
+        if kind is not None:
+            if kind not in VALID_RECORD_KINDS:
+                raise ValueError(f"Invalid record kind: {kind}")
+            rows = conn.execute(
+                "SELECT * FROM records WHERE kind = ? ORDER BY id ASC",
+                (kind,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM records ORDER BY id ASC").fetchall()
+
+    results = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["data"] = json.loads(item["data_json"])
+        except Exception:
+            item["data"] = item["data_json"]
+        results.append(item)
+    return results
