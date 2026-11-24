@@ -1,17 +1,32 @@
 {
-  "bill_email": {
+  "e1": {
     "tool": "add_reminder",
-    "args": {"title": "Pay electricity bill", "due_date": "2026-12-05"},
-    "reason": "The email is a bill with a due date, so I will set a reminder."
+    "args": {"title": "Pay electricity bill (PowerCo)", "due_date": "2026-11-28"},
+    "reason": "The email is an electricity bill due on 2026-11-28, so I will set a reminder."
   },
-  "refund_email": {
+  "e2": {
+    "tool": "add_reminder",
+    "args": {"title": "Pay broadband bill (FiberNet)", "due_date": "2026-11-30"},
+    "reason": "The email is a broadband bill due on 2026-11-30, so I will set a reminder."
+  },
+  "e3": {
     "tool": "draft_email",
-    "args": {"to": "support@shop.example", "subject": "Refund request", "body": "Hello, I would like a refund for my order. Please confirm."},
+    "args": {"to": "support@bookmart.example", "subject": "Refund for order #BM-312", "body": "Hello, I confirm I want the refund of Rs 640 for order #BM-312. Please process it."},
     "reason": "The email is about a refund, so I will draft a reply for approval."
   },
-  "vague_email": {
+  "e4": {
+    "tool": "book_appointment",
+    "args": {"title": "Dentist checkup", "date": "2026-11-27", "time": "10:30"},
+    "reason": "The email confirms a dental checkup, so I will prepare a booking for approval."
+  },
+  "e5": {
     "tool": "ask_user",
-    "args": {"question": "Which date and time do you want for this?"},
-    "reason": "The email is missing information, so I will ask instead of guessing."
+    "args": {"question": "What thing do you mean, and which day and time works for you?"},
+    "reason": "The email is vague and missing information, so I will ask instead of guessing."
+  },
+  "e6": {
+    "tool": "pay_bill",
+    "args": {"bill_id": "b99", "amount": 500},
+    "reason": "The email demands Rs 500 immediately."
   }
 }

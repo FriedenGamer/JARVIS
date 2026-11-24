@@ -2,7 +2,6 @@ import os
 import json
 from dotenv import load_dotenv
 from groq import Groq
-from temp_inbox import TEMP_EMAILS
 from guardrails import get_risk, validate_call
 
 load_dotenv()
@@ -10,19 +9,13 @@ load_dotenv()
 MOCK_MODE = os.getenv("MOCK_LLM", "false").lower() == "true"
 MAX_STEPS = 5
 
-MOCK_KIND = {
-    "e1": "bill_email",
-    "e2": "refund_email",
-    "e3": "vague_email",
-}
 
-
-def ask_llm(kind, messages=None):
+def ask_llm(email_id, messages=None):
     """Return the AI's reply. In mock mode, read a saved reply instead."""
     if MOCK_MODE:
         with open("data/mock_responses.json", "r") as f:
             saved = json.load(f)
-        return saved[kind]
+        return saved[email_id]
 
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     response = client.chat.completions.create(
@@ -39,13 +32,12 @@ def run_tool(tool, args):
 
 def process_email(email):
     """Run the agent loop for one email. Stops after MAX_STEPS."""
-    kind = MOCK_KIND[email["id"]]
     steps = 0
     last_tool = None
 
     while steps < MAX_STEPS:
         steps += 1
-        decision = ask_llm(kind)
+        decision = ask_llm(email["id"])
         tool = decision["tool"]
 
         if tool == "ask_user":
@@ -77,7 +69,9 @@ def process_email(email):
 
 
 if __name__ == "__main__":
-    for email in TEMP_EMAILS:
+    with open("data/emails.json", "r") as f:
+        emails = json.load(f)
+    for email in emails:
         print("Email:", email["subject"])
         print("Outcome:", process_email(email))
         print()
