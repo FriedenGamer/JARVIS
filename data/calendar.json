@@ -1,0 +1,18 @@
+[
+  {
+    "date": "2026-11-27",
+    "slots": [
+      { "time": "09:30", "status": "free" },
+      { "time": "10:30", "status": "free" },
+      { "time": "11:00", "status": "busy", "title": "Team sync" },
+      { "time": "15:00", "status": "free" }
+    ]
+  },
+  {
+    "date": "2026-11-28",
+    "slots": [
+      { "time": "10:00", "status": "free" },
+      { "time": "14:00", "status": "busy", "title": "Project review" }
+    ]
+  }
+]
