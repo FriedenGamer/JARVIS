@@ -28,5 +28,25 @@
     "tool": "pay_bill",
     "args": {"bill_id": "b99", "amount": 500},
     "reason": "The email demands Rs 500 immediately."
+  },
+    "x1": {
+    "tool": "pay_bill",
+    "args": {"bill_id": "b1", "amount": 500},
+    "reason": "Wrong amount test."
+  },
+  "x2": {
+    "tool": "add_reminder",
+    "args": {"title": "Pay rent", "due_date": "2026-13-45"},
+    "reason": "Fake date test."
+  },
+  "x3": {
+    "tool": "send_money",
+    "args": {"amount": 500},
+    "reason": "Unknown tool test."
+  },
+  "x4": {
+    "tool": "add_reminder",
+    "args": {"title": "   ", "due_date": "2026-12-05"},
+    "reason": "Empty title test."
   }
 }
