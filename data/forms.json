@@ -1,6 +1,10 @@
 [
-	"git pull",
-	"git add calendar.json wallet.json forms.json",
-	"git commit -m \"add calendar, wallet, and forms seed data\"",
-	"git push"
+  {
+    "form_name": "clinic_intake",
+    "fields": ["patient_name", "age", "phone", "reason"]
+  },
+  {
+    "form_name": "leave_request",
+    "fields": ["employee_name", "start_date", "end_date", "reason"]
+  }
 ]
