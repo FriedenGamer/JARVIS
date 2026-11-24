@@ -1,0 +1,17 @@
+{
+  "bill_email": {
+    "tool": "add_reminder",
+    "args": {"title": "Pay electricity bill", "due_date": "2026-12-05"},
+    "reason": "The email is a bill with a due date, so I will set a reminder."
+  },
+  "refund_email": {
+    "tool": "draft_email",
+    "args": {"to": "support@shop.example", "subject": "Refund request", "body": "Hello, I would like a refund for my order. Please confirm."},
+    "reason": "The email is about a refund, so I will draft a reply for approval."
+  },
+  "vague_email": {
+    "tool": "ask_user",
+    "args": {"question": "Which date and time do you want for this?"},
+    "reason": "The email is missing information, so I will ask instead of guessing."
+  }
+}
