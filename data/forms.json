@@ -1,5 +1,6 @@
-git pull
-git add data/calendar.json data/wallet.json data/forms.json
-git commit -m "add calendar, wallet, and forms seed data"
-git push
-```[cite: 24, 27]
+[
+	"git pull",
+	"git add calendar.json wallet.json forms.json",
+	"git commit -m \"add calendar, wallet, and forms seed data\"",
+	"git push"
+]
