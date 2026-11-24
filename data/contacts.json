@@ -1,0 +1,20 @@
+[
+  {
+    "id": "c1",
+    "role": "professor",
+    "name": "Prof. Karthik Menon",
+    "email": "k.menon@campus.example"
+  },
+  {
+    "id": "c2",
+    "role": "shop",
+    "name": "BookMart Support",
+    "email": "support@bookmart.example"
+  },
+  {
+    "id": "c3",
+    "role": "electricity office",
+    "name": "PowerCo Billing",
+    "email": "billing@powerco.example"
+  }
+]

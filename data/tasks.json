@@ -1,0 +1,38 @@
+[
+  {
+    "id": "t1",
+    "title": "Pay PowerCo electricity bill",
+    "due_date": "2026-11-28",
+    "priority": "high"
+  },
+  {
+    "id": "t2",
+    "title": "Attend dentist appointment",
+    "due_date": "2026-11-27",
+    "priority": "medium"
+  },
+  {
+    "id": "t3",
+    "title": "Pay FiberNet broadband bill",
+    "due_date": "2026-11-30",
+    "priority": "high"
+  },
+  {
+    "id": "t4",
+    "title": "Follow up on BookMart refund",
+    "due_date": "2026-11-29",
+    "priority": "medium"
+  },
+  {
+    "id": "t5",
+    "title": "Review project notes",
+    "due_date": "2026-12-01",
+    "priority": "low"
+  },
+  {
+    "id": "t6",
+    "title": "Clean up local files",
+    "due_date": "2026-12-02",
+    "priority": "low"
+  }
+]
