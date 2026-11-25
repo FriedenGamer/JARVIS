@@ -108,6 +108,21 @@ def validate_call(tool, args):
             return False, "Date must be a real date like 2026-12-05."
         if not is_real_time(args.get("time")):
             return False, "Time must look like 10:30."
+        date_val = str(args.get("date"))
+        time_val = str(args.get("time"))
+        for day in load_json("calendar.json"):
+            if day.get("date") == date_val:
+                for slot in day.get("slots", []):
+                    if slot.get("time") == time_val and slot.get("status") == "busy":
+                        return False, "Slot is busy."
+
+        bookings = [
+            r["data"] for r in db.list_records("booking")
+            if isinstance(r.get("data"), dict)
+        ]
+        for b in bookings:
+            if b.get("date") == date_val and b.get("time") == time_val:
+                return False, "Slot is already booked."
 
     if tool == "fill_form":
         if str(args.get("form_name", "")).strip() == "":
