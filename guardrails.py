@@ -101,6 +101,17 @@ def validate_call(tool, args):
         if not isinstance(args.get("fields"), dict):
             return False, "Fields must be a list of name and value pairs."
 
+        form = None
+        for f in load_json("forms.json"):
+            if f["form_name"] == args.get("form_name"):
+                form = f
+        if form is None:
+            return False, "Form not found: " + str(args.get("form_name"))
+
+        for field in args["fields"]:
+            if field not in form["fields"]:
+                return False, "Unknown field: " + str(field)
+
     if tool == "calculate":
         expression = str(args.get("expression", "")).strip()
         if expression == "":
