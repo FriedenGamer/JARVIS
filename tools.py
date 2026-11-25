@@ -24,21 +24,21 @@ _SAFE_UNARYOPS = {
     ast.USub: operator.neg,
 }
 
-
+# Return a standard success response dictionary.
 def _ok(data):
     return {"success": True, "data": data, "error": None}
 
-
+# Return a standard failure response dictionary with an error message.
 def _fail(error):
     return {"success": False, "data": None, "error": error}
 
-
+# Load a seed JSON file from the data/ folder (read-only seed data)
 def _load_json(filename):
     path = BASE_DIR / "data" / filename
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
+# Check that a string is a valid YYYY-MM-DD calendar date
 def _valid_date(date_str):
     if not isinstance(date_str, str):
         return False
@@ -48,7 +48,7 @@ def _valid_date(date_str):
     except ValueError:
         return False
 
-
+#Check that a string is a valid HH:MM 24-hour time
 def _valid_time(time_str):
     if not isinstance(time_str, str):
         return False
@@ -58,7 +58,7 @@ def _valid_time(time_str):
     except ValueError:
         return False
 
-
+# Safely evaluate basic math AST nodes only (no eval, no functions/imports)
 def _eval_math_node(node):
     if isinstance(node, ast.Expression):
         return _eval_math_node(node.body)
@@ -74,14 +74,14 @@ def _eval_math_node(node):
         return _SAFE_BINOPS[type(node.op)](left, right)
     raise ValueError("Unsafe or unsupported math expression")
 
-
+# Read fake emails from data/emails.json
 def read_inbox():
     try:
         return _ok(_load_json("emails.json"))
     except Exception as exc:
         return _fail(str(exc))
 
-
+#Look up bill details from data/bills.json by email_id; fail if not found
 def get_bill_details(email_id):
     try:
         bills = _load_json("bills.json")
@@ -92,7 +92,7 @@ def get_bill_details(email_id):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Add a reminder to SQLite after checking title and date; skip exact duplicates
 def add_reminder(title, due_date):
     if not isinstance(title, str) or not title.strip():
         return _fail("title cannot be empty")
@@ -117,7 +117,7 @@ def add_reminder(title, due_date):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Load tasks from data/tasks.json and sort by due date, priority, then id
 def plan_week():
     try:
         tasks = _load_json("tasks.json")
@@ -133,7 +133,7 @@ def plan_week():
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Validate email fields and save a simulated draft in SQLite (never sends email)
 def draft_email(to, subject, body):
     if not isinstance(to, str) or not to.strip():
         return _fail("to cannot be empty")
@@ -154,7 +154,7 @@ def draft_email(to, subject, body):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Return slots for a date from data/calendar.json plus any bookings saved in SQLite
 def view_calendar(date):
     if not _valid_date(date):
         return _fail("date must be a valid YYYY-MM-DD date")
@@ -190,7 +190,7 @@ def view_calendar(date):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Book an appointment if date/time are valid and the slot isn't busy in JSON or SQLite
 def book_appointment(title, date, time):
     if not isinstance(title, str) or not title.strip():
         return _fail("title cannot be empty")
@@ -223,7 +223,7 @@ def book_appointment(title, date, time):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Simulate paying a bill after checking bill exists, exact amount, no double-pay, and wallet balance
 def pay_bill(bill_id, amount):
     try:
         bills = _load_json("bills.json")
@@ -271,7 +271,7 @@ def pay_bill(bill_id, amount):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Safely calculate a math expression string without using eval()
 def calculate(expression):
     if not isinstance(expression, str) or not expression.strip():
         return _fail("expression cannot be empty")
@@ -282,7 +282,7 @@ def calculate(expression):
     except Exception as exc:
         return _fail(str(exc))
 
-
+# Return the current local date, time, and ISO timestamp
 def get_current_time():
     now = datetime.now()
     return _ok(
@@ -293,7 +293,7 @@ def get_current_time():
         }
     )
 
-
+# Validate form_name and field names against data/forms.json and save the filled form to SQLite
 def fill_form(form_name, fields):
     if not isinstance(form_name, str) or not form_name.strip():
         return _fail("form_name cannot be empty")

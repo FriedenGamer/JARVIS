@@ -15,17 +15,17 @@ VALID_STATUSES = {
     "failed",
 }
 
-
+# Return current time in UTC ISO format for timestamps.
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
-
+# Opens a SQLite connection to jarvis.db and return dict-like rows.
 def _connect():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
-
+# Create tasks, audit_log, and records tables if they don't exist yet.
 def init_db():
     """Create tasks, audit_log, and records tables if they do not exist."""
     with _connect() as conn:
@@ -68,7 +68,7 @@ def init_db():
         )
         conn.commit()
 
-
+# Append a new event to audit_log (never updates or deletes old log rows).
 def log_event(task_id, event, details):
     """Append-only audit log writer; never updates or deletes rows."""
     init_db()
@@ -85,7 +85,7 @@ def log_event(task_id, event, details):
         conn.commit()
         return cur.lastrowid
 
-
+# Creates a new task in 'pending' status by default and log its creation.
 def create_task(tool_name, args, risk_level, reason, status="pending"):
     """Insert a new task row, log its creation, and return the new task id."""
     if status not in VALID_STATUSES:
@@ -110,7 +110,7 @@ def create_task(tool_name, args, risk_level, reason, status="pending"):
     log_event(task_id, "task_created", f"tool={tool_name}, status={status}, reason={reason}")
     return task_id
 
-
+# Fetchs one task by ID as a dictionary, or None if not found.
 def get_task(task_id):
     """Fetch a single task by id as a dict, or None if not found."""
     init_db()
@@ -118,7 +118,7 @@ def get_task(task_id):
         row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         return dict(row) if row else None
 
-
+# Return all tasks, or only tasks matching a given status.
 def list_tasks(status=None):
     """Return all tasks, or filter by status if provided."""
     init_db()
@@ -134,7 +134,7 @@ def list_tasks(status=None):
             rows = conn.execute("SELECT * FROM tasks ORDER BY id ASC").fetchall()
         return [dict(r) for r in rows]
 
-
+# Update a task's status (plus result or error) and log the status change.
 def set_status(task_id, status, result_json=None, error_message=None):
     """Update task status (and optional result or error) and append an audit entry."""
     if status not in VALID_STATUSES:
@@ -170,7 +170,7 @@ def set_status(task_id, status, result_json=None, error_message=None):
     )
     return get_task(task_id)
 
-
+# Edit task arguments only while status is 'pending', logging old and new values.
 def update_task_payload(task_id, new_data):
     """Edit args_json only while status is pending; log both old and new values."""
     task = get_task(task_id)
@@ -201,7 +201,7 @@ def update_task_payload(task_id, new_data):
     )
     return get_task(task_id)
 
-
+# Move a task from 'pending' to 'approved'; block if already handled.
 def approve_task(task_id):
     """Approve a task only when its current status is pending."""
     task = get_task(task_id)
@@ -221,7 +221,7 @@ VALID_RECORD_KINDS = {
     "memory",
 }
 
-
+#  It Saves a persistent record (reminder, draft, payment, booking, form, etc.) in SQLite.
 def add_record(kind, data):
     """Insert a state record (reminder, draft, payment, booking, form, etc.) into SQLite."""
     if kind not in VALID_RECORD_KINDS:
@@ -240,7 +240,7 @@ def add_record(kind, data):
         conn.commit()
         return cur.lastrowid
 
-
+# Read saved records from SQLite (optionally filtered by kind) with parsed 'data'.
 def list_records(kind=None):
     """Return records as dicts with parsed 'data' field, optionally filtered by kind."""
     init_db()
