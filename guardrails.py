@@ -1,4 +1,5 @@
 import json
+import db
 from datetime import datetime
 
 RISK = {
@@ -82,6 +83,19 @@ def validate_call(tool, args):
             return False, "Amount must be a number."
         if amount != float(bill["amount"]):
             return False, "Amount must be exactly Rs " + str(bill["amount"])
+        payments = [
+            r["data"] for r in db.list_records("payment")
+            if isinstance(r.get("data"), dict)
+        ]
+        for p in payments:
+            if p.get("bill_id") == args.get("bill_id"):
+                return False, "Bill already paid."
+
+        wallet = load_json("wallet.json")
+        spent = sum(p.get("amount", 0) for p in payments)
+        balance = wallet.get("starting_balance", 0) - spent
+        if amount > balance:
+            return False, "Not enough money in the wallet. Balance is Rs " + str(balance)
 
     if tool == "view_calendar":
         if not is_real_date(args.get("date")):
