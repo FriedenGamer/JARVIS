@@ -48,5 +48,10 @@
     "tool": "add_reminder",
     "args": {"title": "   ", "due_date": "2026-12-05"},
     "reason": "Empty title test."
-  }
+  },
+    "chat": {
+    "tool": "plan_week",
+    "args": {},
+    "reason": "The user asked what to do this week, so I will build the weekly plan."
+  } 
 }

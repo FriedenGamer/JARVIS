@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from groq import Groq
 from guardrails import get_risk, validate_call
 import tools
+import db
 
 load_dotenv(override=True)
 
@@ -65,6 +66,56 @@ def ask_llm(email):
             "reason": "The AI reply was broken or the AI was unreachable.",
         }
 
+    CHAT_PROMPT = """You are Jarvis, a careful assistant. The user is chatting with you.
+Choose ONE tool. Reply with JSON only, no other text, in this shape:
+{"tool": "...", "args": {...}, "reason": "one short sentence"}
+
+Tools:
+- plan_week: {}
+- view_calendar: {"date": "YYYY-MM-DD"}
+- calculate: {"expression": "text"}
+- get_current_time: {}
+- add_reminder: {"title": "text", "due_date": "YYYY-MM-DD"}
+- book_appointment: {"title": "text", "date": "YYYY-MM-DD", "time": "HH:MM"}
+- draft_email: {"to": "address", "subject": "text", "body": "text"}
+- ask_user: {"question": "text"}  (use this if information is missing)
+
+Rules:
+- You can never pay money.
+- Never invent ids, dates or amounts. If unsure, use ask_user."""
+
+
+def ask_llm_chat(message):
+    """Return the AI's decision for a chat message. Mock mode reads a saved reply."""
+    if MOCK_MODE:
+        with open("data/mock_responses.json", "r") as f:
+            saved = json.load(f)
+        return saved["chat"]
+
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        response = client.chat.completions.create(
+            model=os.getenv("GROQ_MODEL"),
+            messages=[
+                {"role": "system", "content": CHAT_PROMPT},
+                {"role": "user", "content": message},
+            ],
+        )
+        raw = response.choices[0].message.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        decision = json.loads(raw)
+        if "tool" not in decision or "args" not in decision:
+            raise ValueError("missing tool or args")
+        decision.setdefault("reason", "No reason given.")
+        return decision
+    except Exception as error:
+        print("DEBUG error:", error)
+        return {
+            "tool": "ask_user",
+            "args": {"question": "I could not understand the AI reply. Please try again."},
+            "reason": "The AI reply was broken or the AI was unreachable.",
+        }
+
 
 TOOL_FUNCTIONS = {
     "read_inbox": tools.read_inbox,
@@ -92,44 +143,64 @@ def run_tool(tool, args):
         return {"success": False, "data": None, "error": "Tool crashed: " + str(error)}
 
 
-def process_email(email):
-    """Run the agent loop for one email. Stops after MAX_STEPS."""
+def run_agent_loop(get_decision):
+    """Run the agent loop. Every action is saved in the database."""
     steps = 0
     last_tool = None
 
     while steps < MAX_STEPS:
         steps += 1
-        decision = ask_llm(email)
+        decision = get_decision()
         tool = decision["tool"]
+        args = decision["args"]
+        reason = decision.get("reason", "No reason given.")
 
         if tool == "ask_user":
-            return {"status": "needs_info", "question": decision["args"]["question"]}
+            return {"status": "needs_info", "question": args["question"]}
 
         if tool == last_tool:
             return {"status": "stopped", "message": "I repeated the same tool, so I stopped."}
 
-        ok, problem = validate_call(tool, decision["args"])
-        if not ok:
-            return {"status": "rejected", "message": problem}
+        if not isinstance(args, dict):
+            return {"status": "rejected", "message": "Arguments must be name and value pairs."}
 
-        risk = get_risk(tool)
+        risk = get_risk(tool) or "unknown"
+        ok, problem = validate_call(tool, args)
+        if not ok:
+            task_id = db.create_task(tool, args, risk, reason, status="rejected")
+            db.log_event(task_id, "blocked_by_guardrails", problem)
+            return {"status": "rejected", "task_id": task_id, "message": problem}
 
         if risk == "high":
+            task_id = db.create_task(tool, args, risk, reason, status="pending")
             return {
                 "status": "pending",
+                "task_id": task_id,
                 "tool": tool,
-                "args": decision["args"],
-                "reason": decision["reason"],
+                "args": args,
+                "reason": reason,
                 "message": "Waiting for your approval.",
             }
 
         last_tool = tool
-        result = run_tool(tool, decision["args"])
+        task_id = db.create_task(tool, args, risk, reason, status="executing")
+        result = run_tool(tool, args)
         if not result["success"]:
-            return {"status": "failed", "tool": tool, "message": result["error"]}
-        return {"status": "done", "tool": tool, "result": result, "reason": decision["reason"]}
+            db.set_status(task_id, "failed", error_message=result["error"])
+            return {"status": "failed", "task_id": task_id, "tool": tool, "message": result["error"]}
+        db.set_status(task_id, "executed", result_json=result)
+        return {"status": "done", "task_id": task_id, "tool": tool, "result": result, "reason": reason}
 
     return {"status": "stopped", "message": "Too many steps, so I stopped."}
+
+def process_email(email):
+    """Run the agent loop for one email."""
+    return run_agent_loop(lambda: ask_llm(email))
+
+
+def process_chat(message):
+    """Run the agent loop for one chat message."""
+    return run_agent_loop(lambda: ask_llm_chat(message))
 
 
 if __name__ == "__main__":
