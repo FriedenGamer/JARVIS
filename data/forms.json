@@ -1,5 +1,10 @@
-git pull
-git add data/calendar.json data/wallet.json data/forms.json
-git commit -m "add calendar, wallet, and forms seed data"
-git push
-```[cite: 24, 27]
+[
+  {
+    "form_name": "clinic_intake",
+    "fields": ["patient_name", "age", "phone", "reason"]
+  },
+  {
+    "form_name": "leave_request",
+    "fields": ["employee_name", "start_date", "end_date", "reason"]
+  }
+]
