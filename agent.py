@@ -67,7 +67,7 @@ def ask_llm(email):
             "reason": "The AI reply was broken or the AI was unreachable.",
         }
 
-    CHAT_PROMPT = """You are Jarvis, a careful assistant. The user is chatting with you.
+CHAT_PROMPT = """You are Jarvis, a careful assistant. The user is chatting with you.
 Choose ONE tool. Reply with JSON only, no other text, in this shape:
 {"tool": "...", "args": {...}, "reason": "one short sentence"}
 
@@ -203,6 +203,9 @@ def process_email(email):
             outcome["followup"] = add_followup_reminder(subject)
     return outcome
 
+def process_chat(message):
+    """Run the agent loop for one chat message."""
+    return run_agent_loop(lambda: ask_llm_chat(message))
 
 def add_followup_reminder(subject):
     """Set a reminder 7 days from today to follow up on a refund."""
