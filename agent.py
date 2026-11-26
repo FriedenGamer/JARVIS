@@ -5,6 +5,7 @@ from groq import Groq
 from guardrails import get_risk, validate_call
 import tools
 import db
+from datetime import date, timedelta
 
 load_dotenv(override=True)
 
@@ -66,7 +67,7 @@ def ask_llm(email):
             "reason": "The AI reply was broken or the AI was unreachable.",
         }
 
-    CHAT_PROMPT = """You are Jarvis, a careful assistant. The user is chatting with you.
+CHAT_PROMPT = """You are Jarvis, a careful assistant. The user is chatting with you.
 Choose ONE tool. Reply with JSON only, no other text, in this shape:
 {"tool": "...", "args": {...}, "reason": "one short sentence"}
 
@@ -195,13 +196,32 @@ def run_agent_loop(get_decision):
 
 def process_email(email):
     """Run the agent loop for one email."""
-    return run_agent_loop(lambda: ask_llm(email))
-
+    outcome = run_agent_loop(lambda: ask_llm(email))
+    if outcome.get("status") == "pending" and outcome.get("tool") == "draft_email":
+        subject = str(outcome["args"].get("subject", ""))
+        if "refund" in subject.lower():
+            outcome["followup"] = add_followup_reminder(subject)
+    return outcome
 
 def process_chat(message):
     """Run the agent loop for one chat message."""
     return run_agent_loop(lambda: ask_llm_chat(message))
 
+def add_followup_reminder(subject):
+    """Set a reminder 7 days from today to follow up on a refund."""
+    due = (date.today() + timedelta(days=7)).isoformat()
+    args = {"title": "Follow up: " + subject, "due_date": due}
+    ok, problem = validate_call("add_reminder", args)
+    if not ok:
+        return {"status": "rejected", "message": problem}
+    reason = "Check in 7 days if the refund has not arrived."
+    task_id = db.create_task("add_reminder", args, "low", reason, status="executing")
+    result = run_tool("add_reminder", args)
+    if not result["success"]:
+        db.set_status(task_id, "failed", error_message=result["error"])
+        return {"status": "failed", "message": result["error"]}
+    db.set_status(task_id, "executed", result_json=result)
+    return {"status": "done", "task_id": task_id, "due_date": due}
 
 if __name__ == "__main__":
     with open("data/emails.json", "r") as f:
